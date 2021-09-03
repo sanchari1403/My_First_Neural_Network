@@ -1,21 +1,28 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from activation_functions import *
+from regularization import *
 
 # def sigmoid(x):
 #     return 1/(1 + np.exp(-x))
 
 class NeuralNetwork:
-    def __init__(self, x, y,alpha, activation_function):
+    def __init__(self, x, y,alpha=0.01, n_hidden=4, activation_function='sigmoid',l2_lambda=0,dropout=False):
         np.random.seed(10)
         self.input      = x
-        self.weights1   = np.random.rand(self.input.shape[1],4) 
-        self.weights2   = np.random.rand(4,1) 
-        self.bias1      = np.random.rand(4,1)    
-        self.bias2      = np.random.rand(4,1)              
+        self.hidden_units = n_hidden
+        self.weights1   = np.random.rand(self.input.shape[1],self.hidden_units) * 0.01
+        self.weights2   = np.random.rand(self.hidden_units,1) * 0.01
+        self.bias1      = np.random.rand(self.input.shape[0],self.hidden_units)    
+        self.bias2      = np.random.rand(self.input.shape[0],1)              
         self.y          = y
         self.a2         = np.zeros(y.shape) #output layer
         self.learning_rate = alpha
+        self.l2_lambda = l2_lambda
+        if dropout==True:
+            self.dropout = True
+        else:
+            self.dropout = False
         if activation_function == 'sigmoid':
             self.act_func_name = sigmoid
             self.act_func_deriv = sigmoid_derv
@@ -36,13 +43,16 @@ class NeuralNetwork:
         self.a1 = self.act_func_name(self.z1) #1 hidden layer 4X4
         self.z2 = np.dot(self.a1, self.weights2) + self.bias2 #2 output layer 4X1
         self.a2 = self.act_func_name(self.z2) #2 output layer 4X1
+        if self.dropout==True:
+            self.a1 = dropout_regularization(self.a1)
+            self.a2 = dropout_regularization(self.a2)
 
     def backpropagation(self):
         self.dz2 = self.a2 - self.y #4X1
-        self.dw2 = 1/(self.y.shape[0]) * np.dot(self.a1.T,self.dz2) #4X1
+        self.dw2 = 1/(self.y.shape[0]) * np.dot(self.a1.T,self.dz2) + self.l2_lambda/(2*self.input.shape[1])*self.weights2 #4X1
         self.db2 = 1/(self.y.shape[0]) * np.sum(self.dz2,axis=1,keepdims=True)
-        self.dz1 = np.dot(self.weights2, np.dot(self.act_func_deriv(self.z1),self.dz2).T) #4X4
-        self.dw1 = 1/(self.y.shape[0]) * np.dot(self.input.T,self.dz1) #3X4
+        self.dz1 = np.dot(self.dz2, self.weights2.T) * self.act_func_deriv(self.z1) #4X4
+        self.dw1 = 1/(self.y.shape[0]) * np.dot(self.input.T,self.dz1) + self.l2_lambda/(2*self.input.shape[1])*self.weights1 #3X4
         self.db1 = 1/(self.y.shape[0]) * np.sum(self.dz1,axis=1,keepdims=True)
 
     def gradient_descent(self):
@@ -52,46 +62,68 @@ class NeuralNetwork:
         self.bias2 = self.bias2 - self.learning_rate*self.db2
 
     def calculate_loss(self,y,y_cap):
-        loss = - (1/self.input.shape[1]) * np.sum(y*np.log(y_cap) + (1-y)*np.log(1-y_cap))
-        return loss
+        loss = - (1/self.input.shape[0]) * np.sum(y*np.log(y_cap) + (1-y)*np.log(1-y_cap))
+        regularized_loss = L2_regularization(self.input.shape[0],self.weights2,self.l2_lambda)
+        return loss + regularized_loss
+
+    def predict(self,x_test):
+        self.outz1 = np.dot(x_test, self.weights1)  
+        self.outa1 = self.act_func_name(self.outz1) 
+        self.outz2 = np.dot(self.outa1, self.weights2)  
+        return self.act_func_name(self.outz2) 
 
 if __name__ == "__main__":
     X = np.array([[0, 0, 1],
                 [0, 1, 1],
                 [1, 0, 1],
-                [1, 1, 1]])
-    y = np.array([[0], [1], [1], [0]])
+                [1, 1, 1],
+                [0, 0, 0],
+                [0, 1, 0],
+                [0, 1, 1]])
+    y = np.array([[0], [1], [1], [0], [1], [0], [1]])
     sigmoid_vals = []
     inputli = []
     logistic_loss = []
-    nn = NeuralNetwork(X, y, alpha=0.01,activation_function='tanh')
+    nn = NeuralNetwork(X,y,alpha=0.05,n_hidden=15,activation_function='sigmoid',l2_lambda=0.7,dropout=False)
 
-    for i in range(2000):
+    for i in range(10000):
         nn.feedforward()
         nn.backpropagation()
         nn.gradient_descent()
         if i==500:
             error1 = abs(y - nn.a2)
             logistic_loss.append(nn.calculate_loss(y,nn.a2))
-            print("Error at 500: "+str(np.sum(error1)))
+            # print("Error at 500: "+str(np.sum(error1)))
         elif i==1000:
             error2 = abs(y - nn.a2)
             logistic_loss.append(nn.calculate_loss(y,nn.a2))
-            print("Error at 1000: "+str(np.sum(error2)))
+            # print("Error at 1000: "+str(np.sum(error2)))
         elif i==1499:
             error3 = abs(y - nn.a2)
             logistic_loss.append(nn.calculate_loss(y,nn.a2))
-            print("Error at 1500: "+str(np.sum(error3)))
+            # print("Error at 1500: "+str(np.sum(error3)))
         elif i==1999:
             error4 = abs(y - nn.a2)
             logistic_loss.append(nn.calculate_loss(y,nn.a2))
-            print("Error at 2000: "+str(np.sum(error4)))
-labels = [500,1000,1500,2000]
-error_terms = [np.sum(error1), np.sum(error2), np.sum(error3), np.sum(error4)]
+            # print("Error at 2000: "+str(np.sum(error4)))
+    error5 = abs(y - nn.a2)
+    logistic_loss.append(nn.calculate_loss(y,nn.a2))
+# print("Predicted Output for training data: "+str(nn.a2))
+labels = [500,1000,1500,2000,'...']
+error_terms = [np.sum(error1), np.sum(error2), np.sum(error3), np.sum(error4), np.sum(error5)]
+plt.figure(0)
 plt.plot(labels,error_terms)
 plt.plot(labels,logistic_loss)
 plt.legend(["Absolute_Error","Logistic_Loss"])
 plt.xlabel("Number of epochs")
 plt.ylabel("Error")
 plt.title("Epoch vs Error")
-plt.savefig(r"C:\Sanchari\UBMS\Self_Projects\Neural_Network\Epoch_vs_Error.png")
+plt.savefig(r"C:\Sanchari\UBMS\Self_Projects\Neural_Network\My_First_Neural_Network\Epoch_vs_Error.png")
+
+x_test = np.array([[1, 1, 0]])
+y_test = np.array([[1]])
+y_pred = nn.predict(x_test)
+print("Actual output for testing data:")
+print(y_test)
+print("Predicted output for testing data:")
+print(y_pred)
