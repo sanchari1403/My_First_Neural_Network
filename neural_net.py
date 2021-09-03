@@ -63,7 +63,8 @@ class NeuralNetwork:
 
     def calculate_loss(self,y,y_cap):
         loss = - (1/self.input.shape[0]) * np.sum(y*np.log(y_cap) + (1-y)*np.log(1-y_cap)) #sigmoid loss
-        regularized_loss = L2_regularization(self.input.shape[0],self.weights2,self.l2_lambda) #regularized loss
+        regularized_loss = L2_regularization(self.input.shape[0],self.weights1,self.l2_lambda) #regularized loss for W1
+        regularized_loss += L2_regularization(self.input.shape[0],self.weights2,self.l2_lambda) #regularized loss for W2
         return loss + regularized_loss
 
     def predict(self,x_test):
@@ -84,7 +85,7 @@ if __name__ == "__main__":
     sigmoid_vals = []
     inputli = []
     logistic_loss = []
-    nn = NeuralNetwork(X,y,alpha=0.05,n_hidden=15,activation_function='sigmoid',l2_lambda=0.7,dropout=False)
+    nn = NeuralNetwork(X,y,alpha=0.01,n_hidden=3,activation_function='sigmoid',l2_lambda=0.4,dropout=False)
     #train for 10k epochs
     for i in range(10000):
         nn.feedforward()
@@ -104,6 +105,8 @@ if __name__ == "__main__":
             logistic_loss.append(nn.calculate_loss(y,nn.a2))
     error5 = abs(y - nn.a2)
     logistic_loss.append(nn.calculate_loss(y,nn.a2))
+print("Loss terms: ")
+print(logistic_loss)
 labels = [500,1000,1500,2000,'...']
 error_terms = [np.sum(error1), np.sum(error2), np.sum(error3), np.sum(error4), np.sum(error5)]
 #Plot the error terms
