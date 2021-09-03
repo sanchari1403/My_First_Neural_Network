@@ -39,20 +39,20 @@ class NeuralNetwork:
             raise ValueError("Activation function valid types are: sigmoid, tanh, relu, leaky_relu")
 
     def feedforward(self):
-        self.z1 = np.dot(self.input, self.weights1) + self.bias1 #1 hidden layer #4X4
-        self.a1 = self.act_func_name(self.z1) #1 hidden layer 4X4
-        self.z2 = np.dot(self.a1, self.weights2) + self.bias2 #2 output layer 4X1
-        self.a2 = self.act_func_name(self.z2) #2 output layer 4X1
-        if self.dropout==True:
+        self.z1 = np.dot(self.input, self.weights1) + self.bias1 #1 hidden layer 
+        self.a1 = self.act_func_name(self.z1) #1 hidden layer output
+        self.z2 = np.dot(self.a1, self.weights2) + self.bias2 #2 output layer 
+        self.a2 = self.act_func_name(self.z2) #2 output layer y_cap
+        if self.dropout==True: #if dropout regularization applied
             self.a1 = dropout_regularization(self.a1)
             self.a2 = dropout_regularization(self.a2)
 
     def backpropagation(self):
-        self.dz2 = self.a2 - self.y #4X1
-        self.dw2 = 1/(self.y.shape[0]) * np.dot(self.a1.T,self.dz2) + self.l2_lambda/(2*self.input.shape[1])*self.weights2 #4X1
+        self.dz2 = self.a2 - self.y 
+        self.dw2 = 1/(self.y.shape[0]) * np.dot(self.a1.T,self.dz2) + self.l2_lambda/(2*self.input.shape[1])*self.weights2 #L2 regularized term added
         self.db2 = 1/(self.y.shape[0]) * np.sum(self.dz2,axis=1,keepdims=True)
         self.dz1 = np.dot(self.dz2, self.weights2.T) * self.act_func_deriv(self.z1) #4X4
-        self.dw1 = 1/(self.y.shape[0]) * np.dot(self.input.T,self.dz1) + self.l2_lambda/(2*self.input.shape[1])*self.weights1 #3X4
+        self.dw1 = 1/(self.y.shape[0]) * np.dot(self.input.T,self.dz1) + self.l2_lambda/(2*self.input.shape[1])*self.weights1 #L2 regularized term added
         self.db1 = 1/(self.y.shape[0]) * np.sum(self.dz1,axis=1,keepdims=True)
 
     def gradient_descent(self):
@@ -62,8 +62,8 @@ class NeuralNetwork:
         self.bias2 = self.bias2 - self.learning_rate*self.db2
 
     def calculate_loss(self,y,y_cap):
-        loss = - (1/self.input.shape[0]) * np.sum(y*np.log(y_cap) + (1-y)*np.log(1-y_cap))
-        regularized_loss = L2_regularization(self.input.shape[0],self.weights2,self.l2_lambda)
+        loss = - (1/self.input.shape[0]) * np.sum(y*np.log(y_cap) + (1-y)*np.log(1-y_cap)) #sigmoid loss
+        regularized_loss = L2_regularization(self.input.shape[0],self.weights2,self.l2_lambda) #regularized loss
         return loss + regularized_loss
 
     def predict(self,x_test):
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     inputli = []
     logistic_loss = []
     nn = NeuralNetwork(X,y,alpha=0.05,n_hidden=15,activation_function='sigmoid',l2_lambda=0.7,dropout=False)
-
+    #train for 10k epochs
     for i in range(10000):
         nn.feedforward()
         nn.backpropagation()
@@ -93,24 +93,20 @@ if __name__ == "__main__":
         if i==500:
             error1 = abs(y - nn.a2)
             logistic_loss.append(nn.calculate_loss(y,nn.a2))
-            # print("Error at 500: "+str(np.sum(error1)))
         elif i==1000:
             error2 = abs(y - nn.a2)
             logistic_loss.append(nn.calculate_loss(y,nn.a2))
-            # print("Error at 1000: "+str(np.sum(error2)))
         elif i==1499:
             error3 = abs(y - nn.a2)
             logistic_loss.append(nn.calculate_loss(y,nn.a2))
-            # print("Error at 1500: "+str(np.sum(error3)))
         elif i==1999:
             error4 = abs(y - nn.a2)
             logistic_loss.append(nn.calculate_loss(y,nn.a2))
-            # print("Error at 2000: "+str(np.sum(error4)))
     error5 = abs(y - nn.a2)
     logistic_loss.append(nn.calculate_loss(y,nn.a2))
-# print("Predicted Output for training data: "+str(nn.a2))
 labels = [500,1000,1500,2000,'...']
 error_terms = [np.sum(error1), np.sum(error2), np.sum(error3), np.sum(error4), np.sum(error5)]
+#Plot the error terms
 plt.figure(0)
 plt.plot(labels,error_terms)
 plt.plot(labels,logistic_loss)
@@ -118,8 +114,8 @@ plt.legend(["Absolute_Error","Logistic_Loss"])
 plt.xlabel("Number of epochs")
 plt.ylabel("Error")
 plt.title("Epoch vs Error")
-plt.savefig(r"C:\Sanchari\UBMS\Self_Projects\Neural_Network\My_First_Neural_Network\Epoch_vs_Error.png")
-
+plt.savefig("Epoch_vs_Error.png")
+#predict on unseen dataset
 x_test = np.array([[1, 1, 0]])
 y_test = np.array([[1]])
 y_pred = nn.predict(x_test)
